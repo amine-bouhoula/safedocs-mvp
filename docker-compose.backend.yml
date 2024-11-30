@@ -1,0 +1,40 @@
+services:
+  auth-service:
+    build:
+      context: ./auth-service
+    container_name: auth-service
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_URL=postgres://dms_user:dms_password@postgres:5432/dms
+      - REDIS_URL=redis:6379
+      - RABBITMQ_URL=amqp://rabbitmq:rabbitmq@rabbitmq:5672/
+      - PRIVATE_KEY_PATH=/keys/private_key.pem
+    depends_on:
+      - postgres
+      - redis
+    # volumes:
+    #   - /users/amine/keys:/keys
+    networks:
+      - app_network
+
+  file-service:
+    build:
+      context: ./file-service  
+    container_name: file-service
+    command: ["-listen=:8001", "-text=File Service"]
+    depends_on:
+      - postgres
+      - minio
+    ports:
+      - "8001:8001"
+    environment:
+      - PUBLIC_KEY_PATH=/keys/public_key.pem
+    # volumes:
+    #   - /users/amine/keys:/keys
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge
