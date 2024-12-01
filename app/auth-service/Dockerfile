@@ -12,7 +12,7 @@ FROM alpine:latest
 WORKDIR /root/
 COPY --from=builder /app/auth-service . 
 RUN mkdir -p /keys
-COPY ../keys/private_key.pem /keys/private_key.pem
+COPY ./keys/private_key.pem /keys/private_key.pem
 RUN chmod 600 /keys/private_key.pem
 
 RUN chmod +x auth-service

@@ -38,6 +38,24 @@ services:
     networks:
       - app_network
 
+  company-service:
+    build:
+      context: ./app/company-service
+      dockerfile: Dockerfile
+    container_name: company-service
+    command: ["-listen=:8002", "-text=Company Service"]
+    # depends_on:
+    #   - postgres
+    #   - minio
+    ports:
+      - "8002:8002"
+    environment:
+      - PUBLIC_KEY_PATH=/keys/public_key.pem
+    # volumes:
+    #   - /users/amine/keys:/keys
+    networks:
+      - app_network
+
 networks:
   app_network:
     driver: bridge

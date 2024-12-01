@@ -24,7 +24,7 @@ COPY --from=builder /app/file-service .
 COPY --from=builder /app/cmd/.env .
 
 RUN mkdir -p /keys
-COPY ../keys/public_key.pem /keys/public_key.pem
+COPY ./keys/public_key.pem /keys/public_key.pem
 RUN chmod 600 /keys/public_key.pem
 
 # Add OpenSSL and copy the key generation script
