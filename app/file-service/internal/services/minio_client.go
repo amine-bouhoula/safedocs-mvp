@@ -2,7 +2,9 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"log"
 
 	"github.com/google/uuid"
 	"github.com/minio/minio-go/v7"
@@ -21,7 +23,31 @@ func EnableVersioning(client *minio.Client, bucketName string) error {
 	return client.EnableVersioning(ctx, bucketName)
 }
 
-func NewStorageService(endpoint, accessKey, secretKey string, log *zap.Logger) (*StorageService, error) {
+func InitBucketHandler(client *minio.Client, bucketName string) error {
+
+	ctx := context.Background()
+
+	// Check if the bucket exists
+	exists, err := client.BucketExists(ctx, bucketName)
+	if err != nil {
+		return fmt.Errorf("error checking if bucket exists: %w", err)
+	}
+
+	// Create the bucket if it doesn't exist
+	if !exists {
+		err = client.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{})
+		if err != nil {
+			return fmt.Errorf("error creating bucket: %w", err)
+		}
+		log.Printf("Bucket %s created successfully", bucketName)
+	} else {
+		log.Printf("Bucket %s already exists", bucketName)
+	}
+
+	return nil
+}
+
+func ConnectMinio(endpoint, accessKey, secretKey string, log *zap.Logger) (*StorageService, error) {
 
 	// Initialize MinIO client
 	client, err := minio.New(endpoint, &minio.Options{
@@ -35,6 +61,12 @@ func NewStorageService(endpoint, accessKey, secretKey string, log *zap.Logger) (
 
 	log.Info("MinIO client initialized", zap.String("endpoint", endpoint))
 
+	err = InitBucketHandler(client, "files")
+	if err != nil {
+		log.Fatal("Failed to create/access bucket name", zap.Error(err))
+		return nil, err
+	}
+
 	err = EnableVersioning(client, "files")
 	if err != nil {
 		log.Fatal("Failed to enable versioning in Minio")
@@ -45,10 +77,13 @@ func NewStorageService(endpoint, accessKey, secretKey string, log *zap.Logger) (
 }
 
 func (s *StorageService) UploadFile(file io.Reader, fileID, fileName, contentType string) (string, string, error) {
-	// Generate a new fileID if one is not provided
-	if fileID == "" {
-		fileID = uuid.New().String()
+
+	parentFileID := ""
+	if fileID != "" {
+		parentFileID = uuid.New().String()
 	}
+
+	fileID = uuid.New().String()
 
 	// Upload the file using the provided or generated fileID
 	info, err := s.client.PutObject(context.Background(), s.bucket, fileID, file, -1, minio.PutObjectOptions{
@@ -62,6 +97,7 @@ func (s *StorageService) UploadFile(file io.Reader, fileID, fileName, contentTyp
 	// Log success with the version ID
 	s.logger.Info("File uploaded successfully",
 		zap.String("fileID", fileID),
+		zap.String("parentFileID", parentFileID),
 		zap.String("versionID", info.VersionID),
 		zap.String("contentType", contentType),
 	)

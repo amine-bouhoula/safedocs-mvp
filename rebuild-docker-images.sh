@@ -6,11 +6,12 @@ SERVICES="loki nginx_exporter rabbitmq postgres_db auth-service \
 
 # Docker Compose files
 COMPOSE_FILES="-f docker-compose.yml \
-               -f docker-compose.nginx.yml \
-               -f docker-compose.db.yml \
-               -f docker-compose.cache.yml \
-               -f docker-compose.backend.yml \
-               -f docker-compose.monitoring.yml"
+               -f db/docker-compose.db.yml \
+               -f cache/docker-compose.cache.yml \
+               -f app/docker-compose.backend.yml"
+#               -f gateway/docker-compose.nginx.yml \
+#               -f monitoring/docker-compose.monitoring.yml"
+
 
 # Determine if sudo is needed
 SUDO=""
@@ -39,7 +40,7 @@ docker_build() {
 # Function to bring up Docker Compose
 docker_up() {
     echo "Generating RSA keys..."
-    ./generate_keys.sh
+    ./keys/generate_keys.sh
 
     echo "Bringing up Docker Compose..."
     $SUDO docker compose $COMPOSE_FILES up -d

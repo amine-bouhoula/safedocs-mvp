@@ -91,7 +91,7 @@ echo "Total chunks: $TOTAL_CHUNKS"
 echo "Splitting file into chunks..."
 split -b "$CHUNK_SIZE" "$FILE_PATH" chunk_
 
-FILE_ID="6c399110-8964-4117-8773-b97a8f5ad899"
+#FILE_ID="6c399110-8964-4117-8773-b97a8f5ad899"
 
 # Upload each chunk
 INDEX=0

@@ -64,7 +64,7 @@ func StartServer(cfg *config.Config, db *gorm.DB, log *zap.Logger) {
 
 	// Initialize services with proper error handling
 	log.Info("Initializing storage service")
-	storageService, err := services.NewStorageService(cfg.MinIOURL, cfg.MinIOUser, cfg.MinIOPass, log)
+	storageService, err := services.ConnectMinio(cfg.MinIOURL, cfg.MinIOUser, cfg.MinIOPass, log)
 	if err != nil {
 		log.Fatal("Failed to initialize storage service", zap.Error(err))
 	}
@@ -244,6 +244,7 @@ func uploadFileHandler(c *gin.Context, storage *services.StorageService, metadat
 	totalChunksStr := c.PostForm("totalChunks")
 	fileName := c.PostForm("fileName")
 	fileID := c.PostForm("fileID")
+	parentFileID := c.PostForm("parentFileID")
 
 	// Parse numeric fields
 	chunkIndex, err := strconv.Atoi(chunkIndexStr)
@@ -363,7 +364,7 @@ func uploadFileHandler(c *gin.Context, storage *services.StorageService, metadat
 		log.Info("Merged file uploaded successfully", zap.String("fileID", fileID), zap.String("file version", fileVersion))
 
 		// Save metadata
-		err = metadata.SaveFileMetadata(fileID, fileName, session.FileSize, "application/octet-stream")
+		err = metadata.SaveFileMetadata(fileID, fileVersion, parentFileID, fileName, session.FileSize, "application/octet-stream")
 		if err != nil {
 			log.Error("Failed to save file metadata", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file metadata"})

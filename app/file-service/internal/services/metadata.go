@@ -17,12 +17,14 @@ func NewMetadataService(db *gorm.DB, log *zap.Logger) *MetadataService {
 }
 
 // SaveFileMetadata saves the file metadata using GORM
-func (m *MetadataService) SaveFileMetadata(fileID, fileName string, size int64, contentType string) error {
+func (m *MetadataService) SaveFileMetadata(fileID, fileVersion, parentFileID, fileName string, size int64, contentType string) error {
 	metadata := models.FileMetadata{
-		FileID:      fileID,
-		FileName:    fileName,
-		Size:        size,
-		ContentType: contentType,
+		FileID:       fileID,
+		ParentFileID: parentFileID,
+		VersionID:    fileVersion,
+		FileName:     fileName,
+		Size:         size,
+		ContentType:  contentType,
 	}
 
 	if err := m.db.Create(&metadata).Error; err != nil {

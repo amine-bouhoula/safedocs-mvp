@@ -1,8 +1,10 @@
 services:
   auth-service:
     build:
-      context: ./auth-service
+      context: ./app/auth-service
+      dockerfile: Dockerfile
     container_name: auth-service
+
     ports:
       - "8000:8000"
     environment:
@@ -10,9 +12,9 @@ services:
       - REDIS_URL=redis:6379
       - RABBITMQ_URL=amqp://rabbitmq:rabbitmq@rabbitmq:5672/
       - PRIVATE_KEY_PATH=/keys/private_key.pem
-    depends_on:
-      - postgres
-      - redis
+    # depends_on:
+    #   - postgres
+    #   - redis
     # volumes:
     #   - /users/amine/keys:/keys
     networks:
@@ -20,12 +22,13 @@ services:
 
   file-service:
     build:
-      context: ./file-service  
+      context: ./app/file-service
+      dockerfile: Dockerfile
     container_name: file-service
     command: ["-listen=:8001", "-text=File Service"]
-    depends_on:
-      - postgres
-      - minio
+    # depends_on:
+    #   - postgres
+    #   - minio
     ports:
       - "8001:8001"
     environment:
