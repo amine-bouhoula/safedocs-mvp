@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -105,4 +106,19 @@ func ParsePrivateKey(pemKey []byte) (*rsa.PrivateKey, error) {
 	}
 
 	return nil, errors.New("unsupported key type")
+}
+
+func ValidateToken(tokenString string, publicKey *rsa.PublicKey) (*jwt.Token, error) {
+
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return publicKey, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return token, nil
 }

@@ -4,8 +4,9 @@ import (
 	"auth-service/database"
 	"auth-service/handlers"
 	"auth-service/utils"
-	"net/http"
+	"log"
 
+	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
 
@@ -25,11 +26,17 @@ func main() {
 	database.ConnectRedis()
 	utils.Logger.Info("Connected to Redis")
 
+	// Create a new Gin router
+	router := gin.Default()
+
 	// Register routes
-	http.HandleFunc("/register", handlers.RegisterHandler)
-	http.HandleFunc("/login", handlers.LoginHandler)
-	utils.Logger.Info("Auth Service is running on port 8000")
-	if err := http.ListenAndServe(":8000", nil); err != nil {
-		utils.Logger.Fatal("Server failed to start", zap.Error(err))
+	router.POST("/api/v1/auth/register", handlers.RegisterHandler())
+	router.POST("/api/v1/auth/login", handlers.LoginHandler())
+	router.POST("/api/v1/auth/refresh", handlers.RefreshTokenHandler("accessTokenSecret", "refreshTokenSecret"))
+	router.POST("/api/v1/auth/logout", handlers.LogoutHandler())
+
+	// Start the server
+	if err := router.Run(":8000"); err != nil {
+		log.Fatal("Server failed to start:", err)
 	}
 }

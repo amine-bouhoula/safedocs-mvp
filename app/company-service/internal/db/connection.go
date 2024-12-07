@@ -17,9 +17,9 @@ var DB *gorm.DB // GORM's DB type
 var RedisClient *redis.Client
 var ctx = context.Background()
 
-func ConnectDB() error {
+func ConnectDB(dsn string) error {
 	// Define PostgreSQL connection string (use environment variables for production)
-	dsn := "postgres://dms_user:dms_password@postgres:5432/dms?sslmode=disable"
+	//dsn := "postgres://dms_user:dms_password@postgres:5432/dms?sslmode=disable"
 	var err error
 	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
@@ -28,7 +28,7 @@ func ConnectDB() error {
 	}
 
 	// Migrate the schema
-	if err := DB.AutoMigrate(&models.User{}); err != nil {
+	if err := DB.AutoMigrate(&models.Company{}); err != nil {
 		utils.Logger.Fatal("Failed to migrate schema", zap.Error(err))
 		return err
 	}
@@ -38,9 +38,9 @@ func ConnectDB() error {
 	return nil
 }
 
-func ConnectRedis() {
+func ConnectRedis(redisHost string) {
 	RedisClient = redis.NewClient(&redis.Options{
-		Addr: "redis:6379", // Use "localhost:6379" if running locally
+		Addr: redisHost, // Use "localhost:6379" if running locally
 	})
 
 	// Ping Redis to ensure connectivity

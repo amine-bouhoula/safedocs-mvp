@@ -3,41 +3,50 @@ package handlers
 import (
 	"company-service/internal/models"
 	"company-service/internal/services"
-	"encoding/json"
 	"net/http"
 	"strconv"
 
-	"github.com/gorilla/mux"
+	"github.com/gin-gonic/gin"
 )
 
-func CreateOrganization(w http.ResponseWriter, r *http.Request) {
-	var org models.Organization
-	if err := json.NewDecoder(r.Body).Decode(&org); err != nil {
-		http.Error(w, "Invalid input", http.StatusBadRequest)
-		return
-	}
+func CreateCompany() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var org models.Company
 
-	if err := services.CreateOrganization(&org); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+		// Bind request payload to the model
+		if err := c.ShouldBindJSON(&org); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+			return
+		}
 
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(org)
+		// Call the service layer to create the organization
+		if err := services.CreateCompany(&org); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		// Return success response
+		c.JSON(http.StatusCreated, org)
+	}
 }
 
-func GetOrganization(w http.ResponseWriter, r *http.Request) {
-	id, err := strconv.Atoi(mux.Vars(r)["id"])
-	if err != nil {
-		http.Error(w, "Invalid ID", http.StatusBadRequest)
-		return
-	}
+func GetCompanyByID() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Extract and parse company ID
+		id, err := strconv.Atoi(c.Param("id"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
+			return
+		}
 
-	org, err := services.GetOrganizationByID(uint(id))
-	if err != nil {
-		http.Error(w, "Organization not found", http.StatusNotFound)
-		return
-	}
+		// Call the service layer to retrieve the company
+		org, err := services.GetCompanyByID(uint(id))
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Organization not found"})
+			return
+		}
 
-	json.NewEncoder(w).Encode(org)
+		// Return the found company
+		c.JSON(http.StatusOK, org)
+	}
 }

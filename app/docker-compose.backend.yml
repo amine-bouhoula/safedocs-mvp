@@ -12,9 +12,9 @@ services:
       - REDIS_URL=redis:6379
       - RABBITMQ_URL=amqp://rabbitmq:rabbitmq@rabbitmq:5672/
       - PRIVATE_KEY_PATH=/keys/private_key.pem
-    # depends_on:
-    #   - postgres
-    #   - redis
+    depends_on:
+      - postgres
+      - redis
     # volumes:
     #   - /users/amine/keys:/keys
     networks:
@@ -26,9 +26,9 @@ services:
       dockerfile: Dockerfile
     container_name: file-service
     command: ["-listen=:8001", "-text=File Service"]
-    # depends_on:
-    #   - postgres
-    #   - minio
+    depends_on:
+      - postgres
+      - minio
     ports:
       - "8001:8001"
     environment:
@@ -44,9 +44,8 @@ services:
       dockerfile: Dockerfile
     container_name: company-service
     command: ["-listen=:8002", "-text=Company Service"]
-    # depends_on:
-    #   - postgres
-    #   - minio
+    depends_on:
+      - postgres
     ports:
       - "8002:8002"
     environment:
