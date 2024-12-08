@@ -4,6 +4,7 @@ import (
 	"crypto/rsa"
 	"strings"
 
+	"github.com/amine-bouhoula/safedocs-mvp/sdlib/services"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -43,7 +44,7 @@ func AuthMiddleware(publicKey *rsa.PublicKey, logger *zap.Logger) gin.HandlerFun
 		tokenString := parts[1]
 
 		// Validate the token
-		claims, err := ValidateToken(tokenString, publicKey)
+		claims, err := services.ValidateToken(tokenString, publicKey)
 		if err != nil {
 			logger.Error("Token validation failed",
 				zap.String("client_ip", c.ClientIP()),

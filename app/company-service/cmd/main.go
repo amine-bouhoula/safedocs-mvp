@@ -2,10 +2,14 @@ package main
 
 import (
 	handlers "company-service/internal/api"
-	"company-service/internal/config"
-	database "company-service/internal/db"
-	"company-service/internal/services"
-	"company-service/internal/utils"
+
+	"github.com/amine-bouhoula/safedocs-mvp/sdlib/config"
+	"github.com/amine-bouhoula/safedocs-mvp/sdlib/database"
+	"github.com/amine-bouhoula/safedocs-mvp/sdlib/services"
+	"github.com/amine-bouhoula/safedocs-mvp/sdlib/utils"
+
+	compaynservices "company-service/internal/services"
+
 	"fmt"
 
 	"github.com/gin-gonic/gin"
@@ -44,7 +48,7 @@ func main() {
 	utils.Logger.Info("RSA public key loaded successfully")
 
 	utils.Logger.Info("Applying authentication middleware")
-	router.Use(services.AuthMiddleware(publicKey, utils.Logger))
+	router.Use(compaynservices.AuthMiddleware(publicKey, utils.Logger))
 
 	// Company Endpoints
 	router.POST("/api/v1/companies", handlers.CreateCompany())

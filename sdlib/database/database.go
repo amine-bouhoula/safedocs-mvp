@@ -32,9 +32,9 @@ func ConnectDB(dsn string) error {
 	return nil
 }
 
-func ConnectRedis() {
+func ConnectRedis(redisurl string) {
 	RedisClient = redis.NewClient(&redis.Options{
-		Addr: "redis:6379", // Use "localhost:6379" if running locally
+		Addr: redisurl, // Use "localhost:6379" if running locally
 	})
 
 	// Ping Redis to ensure connectivity

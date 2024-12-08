@@ -3,8 +3,7 @@ package api
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"file-service/internal/config"
-	"file-service/internal/services"
+	fileservices "file-service/internal/services"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,10 +13,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/amine-bouhoula/safedocs-mvp/sdlib/config"
+	"github.com/amine-bouhoula/safedocs-mvp/sdlib/database"
+	"github.com/amine-bouhoula/safedocs-mvp/sdlib/services"
+
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
-	"gorm.io/gorm"
 )
 
 type UploadSession struct {
@@ -46,7 +48,7 @@ var uploadSessions = struct {
 	Sessions: make(map[string]*UploadSession),
 }
 
-func StartServer(cfg *config.Config, db *gorm.DB, log *zap.Logger) {
+func StartServer(cfg *config.Config, log *zap.Logger) {
 	// Ensure logger is not nil
 	if log == nil {
 		panic("Logger is required but not provided")
@@ -64,14 +66,14 @@ func StartServer(cfg *config.Config, db *gorm.DB, log *zap.Logger) {
 
 	// Initialize services with proper error handling
 	log.Info("Initializing storage service")
-	storageService, err := services.ConnectMinio(cfg.MinIOURL, cfg.MinIOUser, cfg.MinIOPass, log)
+	storageService, err := fileservices.ConnectMinio(cfg.MinIOURL, cfg.MinIOUser, cfg.MinIOPass, log)
 	if err != nil {
 		log.Fatal("Failed to initialize storage service", zap.Error(err))
 	}
 	log.Info("Storage service initialized successfully")
 
 	log.Info("Initializing metadata service")
-	metadataService := services.NewMetadataService(db, log)
+	metadataService := fileservices.NewMetadataService(database.DB, log)
 	if metadataService == nil {
 		log.Fatal("Failed to initialize metadata service")
 	}
@@ -87,7 +89,7 @@ func StartServer(cfg *config.Config, db *gorm.DB, log *zap.Logger) {
 
 	// Apply middleware
 	log.Info("Applying authentication middleware")
-	router.Use(services.AuthMiddleware(publicKey, log))
+	router.Use(fileservices.AuthMiddleware(publicKey, log))
 
 	// Define /metrics endpoint
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
@@ -116,7 +118,7 @@ func StartServer(cfg *config.Config, db *gorm.DB, log *zap.Logger) {
 	}
 }
 
-func downloadFileHandler(c *gin.Context, storageService *services.StorageService) {
+func downloadFileHandler(c *gin.Context, storageService *fileservices.StorageService) {
 	bucketName := c.Param("bucket")
 	fileName := c.Param("file")
 
@@ -140,7 +142,7 @@ func downloadFileHandler(c *gin.Context, storageService *services.StorageService
 	}
 }
 
-func listFileVersionsHandler(c *gin.Context, storage *services.StorageService) {
+func listFileVersionsHandler(c *gin.Context, storage *fileservices.StorageService) {
 	bucketName := c.Param("bucket")
 	fileName := c.Param("file")
 
@@ -227,7 +229,7 @@ func generateSessionID() string {
 }
 
 // UploadChunk handles chunked file uploads
-func uploadFileHandler(c *gin.Context, storage *services.StorageService, metadata *services.MetadataService, log *zap.Logger) {
+func uploadFileHandler(c *gin.Context, storage *fileservices.StorageService, metadata *fileservices.MetadataService, log *zap.Logger) {
 	// Start timer
 	startTime := time.Now()
 

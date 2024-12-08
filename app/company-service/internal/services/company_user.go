@@ -1,11 +1,12 @@
 package services
 
 import (
-	database "company-service/internal/db"
 	"company-service/internal/models"
 	"errors"
 	"fmt"
 	"net/http"
+
+	"github.com/amine-bouhoula/safedocs-mvp/sdlib/database"
 )
 
 func UserExists(userID string) (bool, error) {

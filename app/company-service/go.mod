@@ -52,10 +52,11 @@ require (
 	google.golang.org/protobuf v1.34.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	gorm.io/gorm v1.25.10 // indirect
+	gorm.io/gorm v1.25.12 // indirect
 )
 
 require (
+	github.com/amine-bouhoula/safedocs-mvp/sdlib v0.0.0-20241208144450-f03a403b4614
 	github.com/gin-gonic/gin v1.10.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang-jwt/jwt/v4 v4.5.1
@@ -65,5 +66,5 @@ require (
 	github.com/spf13/viper v1.19.0
 	go.uber.org/multierr v1.10.0 // indirect
 	golang.org/x/crypto v0.29.0
-	gorm.io/driver/postgres v1.5.10
+	gorm.io/driver/postgres v1.5.11
 )
