@@ -23,7 +23,7 @@ require (
 )
 
 require (
-	github.com/amine-bouhoula/safedocs-mvp/sdlib v0.0.0-20241208140345-cc122c0d9880
+	github.com/amine-bouhoula/safedocs-mvp/sdlib v0.0.0-20241208150029-8f0635b120b5
 	github.com/bytedance/sonic v1.12.4 // indirect
 	github.com/bytedance/sonic/loader v0.2.1 // indirect
 	github.com/cloudwego/base64x v0.1.4 // indirect

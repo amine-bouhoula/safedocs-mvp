@@ -1,9 +1,13 @@
 package handlers
 
 import (
-	"auth-service/database"
 	"auth-service/models"
-	"auth-service/utils"
+
+	"github.com/amine-bouhoula/safedocs-mvp/sdlib/database"
+	"github.com/amine-bouhoula/safedocs-mvp/sdlib/utils"
+
+	authservices "auth-service/utils"
+
 	"net/http"
 	"time"
 
@@ -71,7 +75,7 @@ func RegisterHandler() gin.HandlerFunc {
 		utils.Logger.Info("User registered successfully", zap.String("username", user.Username))
 
 		// Load the private key for JWT generation
-		privateKeyPEM, err := utils.LoadPrivateKey("/keys/private_key.pem")
+		privateKeyPEM, err := authservices.LoadPrivateKey("/keys/private_key.pem")
 		if err != nil {
 			utils.Logger.Fatal("Failed to load private key", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load private key"})
@@ -79,7 +83,7 @@ func RegisterHandler() gin.HandlerFunc {
 		}
 
 		// Generate JWT token
-		token, err := utils.GenerateInternalJWT(user.Username, []string{"admin"}, privateKeyPEM)
+		token, err := authservices.GenerateInternalJWT(user.Username, []string{"admin"}, privateKeyPEM)
 		if err != nil {
 			utils.Logger.Error("Failed to generate token", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
@@ -88,7 +92,8 @@ func RegisterHandler() gin.HandlerFunc {
 
 		// Respond with token
 		c.JSON(http.StatusOK, gin.H{
-			"token": token,
+			"user_uuid": user.ID,
+			"token":     token,
 		})
 
 	}
@@ -127,7 +132,7 @@ func LoginHandler() gin.HandlerFunc {
 		}
 
 		// Load the private key for JWT generation
-		privateKeyPEM, err := utils.LoadPrivateKey("/keys/private_key.pem")
+		privateKeyPEM, err := authservices.LoadPrivateKey("/keys/private_key.pem")
 		if err != nil {
 			utils.Logger.Fatal("Failed to load private key", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load private key"})
@@ -135,7 +140,7 @@ func LoginHandler() gin.HandlerFunc {
 		}
 
 		// Generate JWT token
-		token, err := utils.GenerateInternalJWT(user.Username, []string{"admin"}, privateKeyPEM)
+		token, err := authservices.GenerateInternalJWT(user.Username, []string{"admin"}, privateKeyPEM)
 		if err != nil {
 			utils.Logger.Error("Failed to generate token", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
@@ -175,7 +180,7 @@ func RefreshTokenHandler(accessTokenSecret, refreshTokenSecret string) gin.Handl
 		}
 
 		// Verify token from Redis
-		storedToken, err := utils.GetToken(database.RedisClient, claims.UserID)
+		storedToken, err := authservices.GetToken(database.RedisClient, claims.UserID)
 		if err != nil || storedToken != req.RefreshToken {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token not found or already used"})
 			return
@@ -213,7 +218,7 @@ func LogoutHandler() gin.HandlerFunc {
 		}
 
 		// Delete the token from Redis
-		if err := utils.DeleteToken(database.RedisClient, req.RefreshToken); err != nil {
+		if err := authservices.DeleteToken(database.RedisClient, req.RefreshToken); err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token not found"})
 			return
 		}
@@ -248,7 +253,7 @@ func GetUserHandler() gin.HandlerFunc {
 
 		// Successful response log
 		utils.Logger.Info("User retrieved successfully",
-			zap.Uint("user_id", user.ID),
+			zap.String("user_id", string(user.ID)),
 		)
 
 		// Respond with the found user

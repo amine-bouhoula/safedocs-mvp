@@ -4,14 +4,14 @@ import (
 	"testing"
 	"time"
 
-	"auth-service/database"
 	"auth-service/utils"
 
+	"github.com/amine-bouhoula/safedocs-mvp/sdlib/database"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestRedis_SaveToken(t *testing.T) {
-	database.ConnectRedis()
+	database.ConnectRedis("redis:5975")
 	defer database.RedisClient.Close()
 
 	// Save token
@@ -25,7 +25,7 @@ func TestRedis_SaveToken(t *testing.T) {
 }
 
 func TestRedis_DeleteToken(t *testing.T) {
-	database.ConnectRedis()
+	database.ConnectRedis("redis:5975")
 	defer database.RedisClient.Close()
 
 	// Save and delete token

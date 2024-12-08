@@ -6,8 +6,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"auth-service/database"
+	authdatabase "auth-service/database"
 	"auth-service/handlers"
+
+	"github.com/amine-bouhoula/safedocs-mvp/sdlib/database"
 
 	"github.com/DATA-DOG/go-sqlmock"
 	"github.com/gin-gonic/gin"
@@ -19,7 +21,7 @@ func setupTestDB(t *testing.T) (sqlmock.Sqlmock, func()) {
 	if err != nil {
 		t.Fatalf("Failed to create SQL mock: %s", err)
 	}
-	database.DB, _ = database.OpenMockDB(db)
+	database.DB, _ = authdatabase.OpenMockDB(db)
 	return mock, func() {
 		db.Close()
 	}

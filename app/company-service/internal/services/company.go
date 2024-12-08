@@ -1,9 +1,10 @@
 package services
 
 import (
-	database "company-service/internal/db"
 	"company-service/internal/models"
 	"errors"
+
+	"github.com/amine-bouhoula/safedocs-mvp/sdlib/database"
 )
 
 func CreateCompany(company *models.Company) error {

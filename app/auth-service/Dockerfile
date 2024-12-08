@@ -16,7 +16,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o auth-service ./cmd/main.go
 FROM alpine:latest
 WORKDIR /root/
 COPY --from=builder /app/auth-service .
-
+COPY --from=builder /app/cmd/.env .
 
 RUN mkdir -p /keys
 COPY ./keys/private_key.pem /keys/private_key.pem

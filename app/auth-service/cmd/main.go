@@ -1,9 +1,14 @@
 package main
 
 import (
-	"auth-service/database"
 	"auth-service/handlers"
-	"auth-service/utils"
+
+	authdatabase "auth-service/database"
+
+	"github.com/amine-bouhoula/safedocs-mvp/sdlib/config"
+	"github.com/amine-bouhoula/safedocs-mvp/sdlib/database"
+	"github.com/amine-bouhoula/safedocs-mvp/sdlib/utils"
+
 	"log"
 
 	"github.com/gin-gonic/gin"
@@ -16,14 +21,22 @@ func main() {
 
 	utils.Logger.Info("Starting auth-service")
 
+	// Step 1: Load configuration
+	cfg, _ := config.LoadConfig()
+
+	utils.Logger.Info("Trying to connect to", zap.String("DB Url", cfg.DatabaseURL))
+
 	// Connect to PostgreSQL
-	if err := database.ConnectDB(); err != nil {
+	if err := database.ConnectDB(cfg.DatabaseURL); err != nil {
 		utils.Logger.Fatal("Failed to connect to the databse", zap.Error(err))
 	}
 	utils.Logger.Info("Connected to the database")
 
+	authdatabase.EnableUUIDExtension()
+	authdatabase.MigrateDB()
+
 	// Connect to Redis
-	database.ConnectRedis()
+	database.ConnectRedis(cfg.RedisURL)
 	utils.Logger.Info("Connected to Redis")
 
 	// Create a new Gin router

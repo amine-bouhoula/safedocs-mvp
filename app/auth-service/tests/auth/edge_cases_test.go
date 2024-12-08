@@ -7,10 +7,11 @@ import (
 	"testing"
 
 	"auth-service/handlers"
-	"auth-service/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/amine-bouhoula/safedocs-mvp/sdlib/utils"
 )
 
 func TestLogin_InvalidPayload(t *testing.T) {

@@ -9,14 +9,14 @@ import (
 	"auth-service/handlers"
 	"auth-service/utils"
 
-	"auth-service/database"
-
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/amine-bouhoula/safedocs-mvp/sdlib/database"
 )
 
 func TestLogoutHandler_Success(t *testing.T) {
-	database.ConnectRedis()
+	database.ConnectRedis("redis:5975")
 	defer database.RedisClient.Close()
 
 	// Mock Redis token saving

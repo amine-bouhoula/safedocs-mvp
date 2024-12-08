@@ -1,5 +1,7 @@
 github.com/amine-bouhoula/safedocs-mvp/sdlib v0.0.0-20241208140345-cc122c0d9880 h1:01VOdsRWP/ZJp9VBjBOFJrW3cNVeg6KLrob+ddIxMfE=
 github.com/amine-bouhoula/safedocs-mvp/sdlib v0.0.0-20241208140345-cc122c0d9880/go.mod h1:BydtIv+8rp6BrzSOEACgYVQ4WtqClqiXLnC+N37uR6A=
+github.com/amine-bouhoula/safedocs-mvp/sdlib v0.0.0-20241208150029-8f0635b120b5 h1:Xn4dNYwIxiWxqWufcwCyqEZTUXem6bxXeavQ4zn33DU=
+github.com/amine-bouhoula/safedocs-mvp/sdlib v0.0.0-20241208150029-8f0635b120b5/go.mod h1:BydtIv+8rp6BrzSOEACgYVQ4WtqClqiXLnC+N37uR6A=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/bytedance/sonic v1.12.4 h1:9Csb3c9ZJhfUWeMtpCDCq6BUoH5ogfDFLUgQ/jG+R0k=

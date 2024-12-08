@@ -3,6 +3,7 @@ package database
 import (
 	"database/sql"
 
+	"github.com/amine-bouhoula/safedocs-mvp/sdlib/database"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -16,6 +17,6 @@ func OpenMockDB(db *sql.DB) (*gorm.DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	DB = mockDB
+	database.DB = mockDB
 	return mockDB, nil
 }

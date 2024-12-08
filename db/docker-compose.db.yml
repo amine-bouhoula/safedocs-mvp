@@ -11,6 +11,8 @@ services:
     volumes:
       - ./init-scripts:/docker-entrypoint-initdb.d
       - ./data/postgres:/var/lib/postgresql/data
+    command: >
+      postgres -c "shared_preload_libraries=uuid-ossp"      
     networks:
       - app_network
 

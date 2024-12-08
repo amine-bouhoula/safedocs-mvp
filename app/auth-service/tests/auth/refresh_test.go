@@ -7,16 +7,17 @@ import (
 	"testing"
 	"time"
 
-	"auth-service/database"
 	"auth-service/handlers"
 	"auth-service/utils"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/amine-bouhoula/safedocs-mvp/sdlib/database"
 )
 
 func TestRefreshTokenHandler_Success(t *testing.T) {
-	database.ConnectRedis()
+	database.ConnectRedis("redis:5975")
 	defer database.RedisClient.Close()
 
 	// Mock JWT token generation
