@@ -9,7 +9,7 @@ import (
 func CreateCompany(company *models.Company) error {
 
 	if err := database.DB.Create(company).Error; err != nil {
-		return errors.New("failed to create organization")
+		return errors.New("failed to create company")
 	}
 	return nil
 }
@@ -18,7 +18,7 @@ func GetCompanyByID(id uint) (*models.Company, error) {
 
 	var org models.Company
 	if err := database.DB.First(&org, id).Error; err != nil {
-		return nil, errors.New("organization not found")
+		return nil, errors.New("company not found")
 	}
 	return &org, nil
 }

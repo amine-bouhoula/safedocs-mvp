@@ -34,6 +34,7 @@ func main() {
 	router.POST("/api/v1/auth/login", handlers.LoginHandler())
 	router.POST("/api/v1/auth/refresh", handlers.RefreshTokenHandler("accessTokenSecret", "refreshTokenSecret"))
 	router.POST("/api/v1/auth/logout", handlers.LogoutHandler())
+	router.GET("/api/v1/users/:user_id", handlers.GetUserHandler())
 
 	// Start the server
 	if err := router.Run(":8000"); err != nil {

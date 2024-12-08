@@ -19,7 +19,7 @@ func CreateCompany() gin.HandlerFunc {
 			return
 		}
 
-		// Call the service layer to create the organization
+		// Call the service layer to create the company
 		if err := services.CreateCompany(&org); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -33,7 +33,7 @@ func CreateCompany() gin.HandlerFunc {
 func GetCompanyByID() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Extract and parse company ID
-		id, err := strconv.Atoi(c.Param("id"))
+		id, err := strconv.Atoi(c.Param("company_id"))
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ID"})
 			return
@@ -42,7 +42,7 @@ func GetCompanyByID() gin.HandlerFunc {
 		// Call the service layer to retrieve the company
 		org, err := services.GetCompanyByID(uint(id))
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Organization not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "Company not found"})
 			return
 		}
 

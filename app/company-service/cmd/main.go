@@ -49,7 +49,8 @@ func main() {
 	// Company Endpoints
 	router.POST("/api/v1/companies", handlers.CreateCompany())
 	router.GET("/api/v1/companies/:company_id", handlers.GetCompanyByID())
-	// Register routes
+
+	router.POST("/api/v1/companies/:company_id/users", handlers.AddUserToCompany())
 
 	// Start the server
 	if err := router.Run(":8002"); err != nil {
