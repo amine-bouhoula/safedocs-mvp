@@ -4,9 +4,9 @@ import (
 	"net/http"
 
 	"user-service/models"
-	"user-service/utils"
 
-	"github.com/amine-bouhoula/safedocs-mvp/sdlib/database"
+	database "github.com/amine-bouhoula/safedocs-mvp/sdlib/database"
+	utils "github.com/amine-bouhoula/safedocs-mvp/sdlib/utils"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"

@@ -3,9 +3,11 @@ package main
 import (
 	"log"
 
-	"user-service/database"
 	"user-service/handlers"
-	"user-service/utils"
+
+	"github.com/amine-bouhoula/safedocs-mvp/sdlib/config"
+	"github.com/amine-bouhoula/safedocs-mvp/sdlib/database"
+	"github.com/amine-bouhoula/safedocs-mvp/sdlib/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -15,7 +17,9 @@ func main() {
 	utils.InitLogger("production")
 	defer utils.Logger.Sync()
 
-	database.ConnectDB()
+	cfg, _ := config.LoadConfig()
+
+	database.ConnectDB(cfg.DatabaseURL)
 
 	r := gin.Default()
 
