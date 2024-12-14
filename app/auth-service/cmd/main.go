@@ -5,6 +5,8 @@ import (
 
 	authdatabase "auth-service/database"
 
+	"github.com/gin-contrib/cors"
+
 	"github.com/amine-bouhoula/safedocs-mvp/sdlib/config"
 	"github.com/amine-bouhoula/safedocs-mvp/sdlib/database"
 	"github.com/amine-bouhoula/safedocs-mvp/sdlib/utils"
@@ -41,6 +43,15 @@ func main() {
 
 	// Create a new Gin router
 	router := gin.Default()
+
+	router.Use(cors.New(cors.Config{
+		//AllowOrigins:     []string{"http://localhost:5173"},
+		AllowAllOrigins:  true,
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}))
 
 	// Register routes
 	router.POST("/api/v1/auth/register", handlers.RegisterHandler())

@@ -55,6 +55,27 @@ services:
     networks:
       - app_network
 
+  user-service:
+    build:
+      context: ./app/user-service
+      dockerfile: Dockerfile
+    container_name: user-service
+    command: ["-listen=:8003", "-text=User Service"]
+    ports:
+      - "8003:8003"
+    environment:
+      - DB_URL=postgres://dms_user:dms_password@postgres:5432/dms
+      - REDIS_URL=redis:6379
+      - RABBITMQ_URL=amqp://rabbitmq:rabbitmq@rabbitmq:5672/
+      - PUBLIC_KEY_PATH=/keys/public_key.pem
+    depends_on:
+      - postgres
+      - redis
+    # volumes:
+    #   - /users/amine/keys:/keys
+    networks:
+      - app_network
+
 networks:
   app_network:
     driver: bridge

@@ -7,6 +7,7 @@ import (
 
 	database "github.com/amine-bouhoula/safedocs-mvp/sdlib/database"
 	utils "github.com/amine-bouhoula/safedocs-mvp/sdlib/utils"
+	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -49,6 +50,56 @@ func GetUserHandler() gin.HandlerFunc {
 		}
 
 		utils.Logger.Info("User retrieved successfully", zap.String("user_id", user.ID))
-		c.JSON(http.StatusOK, user)
+		c.JSON(http.StatusOK, gin.H{
+			"name":        user.Username,
+			"profileLink": user.ProfileLink,
+		})
+	}
+}
+
+func GetUserHandlerByEmail() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Define payload structure
+		type EmailRequest struct {
+			Email string `json:"email" binding:"required,email"`
+		}
+
+		var req EmailRequest
+
+		// Bind JSON payload
+		if err := c.ShouldBindJSON(&req); err != nil {
+			utils.Logger.Error("Invalid request payload", zap.Error(err))
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":  "Invalid email format",
+				"exists": false,
+			})
+			return
+		}
+
+		// Search for the user by email
+		var user models.User
+		err := database.DB.Where("email = ?", req.Email).First(&user).Error
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+				utils.Logger.Warn("User not found", zap.String("email", req.Email))
+				c.JSON(http.StatusOK, gin.H{
+					"exists": false,
+				})
+				return
+			}
+
+			// Handle other database errors
+			utils.Logger.Error("Database error", zap.String("email", req.Email), zap.Error(err))
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":  "Database error",
+				"exists": false,
+			})
+			return
+		}
+
+		utils.Logger.Info("User retrieved successfully", zap.String("email", user.Email))
+		c.JSON(http.StatusOK, gin.H{
+			"exists": true,
+		})
 	}
 }

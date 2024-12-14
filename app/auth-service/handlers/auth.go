@@ -17,7 +17,7 @@ import (
 )
 
 type LoginRequest struct {
-	Username string `json:"username" binding:"required"`
+	Email    string `json:"email" binding:"required"`
 	Password string `json:"password" binding:"required"`
 }
 
@@ -91,7 +91,7 @@ func RegisterHandler() gin.HandlerFunc {
 		}
 
 		// Respond with token
-		c.JSON(http.StatusOK, gin.H{
+		c.JSON(http.StatusCreated, gin.H{
 			"user_uuid": user.ID,
 			"token":     token,
 		})
@@ -117,7 +117,7 @@ func LoginHandler() gin.HandlerFunc {
 
 		// Check if user exists in the database
 		var user models.User
-		err := database.DB.Where("username = ?", req.Username).First(&user).Error
+		err := database.DB.Where("email = ?", req.Email).First(&user).Error
 		if err != nil {
 			utils.Logger.Error("Invalid credentials", zap.Error(err))
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})

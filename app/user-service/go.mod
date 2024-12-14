@@ -62,6 +62,7 @@ require (
 
 require (
 	github.com/amine-bouhoula/safedocs-mvp/sdlib v0.0.0-20241208140345-cc122c0d9880
+	github.com/gin-contrib/cors v1.7.2
 	github.com/gin-gonic/gin v1.10.0
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
