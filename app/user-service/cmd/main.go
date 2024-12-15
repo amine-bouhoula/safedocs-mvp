@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"user-service/handlers"
 
@@ -24,14 +25,13 @@ func main() {
 
 	router := gin.Default()
 
-	// CORS configuration
 	router.Use(cors.New(cors.Config{
-		//AllowOrigins:     []string{"http://localhost:5173"}, // Frontend URL
-		AllowAllOrigins:  true,
+		AllowOrigins:     []string{"http://localhost:5173"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
 		ExposeHeaders:    []string{"Content-Length", "Authorization"},
+		MaxAge:           12 * time.Hour, // Caching preflight requests
 	}))
 
 	// Register Routes

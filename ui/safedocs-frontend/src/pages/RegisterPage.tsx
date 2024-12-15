@@ -59,7 +59,6 @@ const RegisterPage: React.FC = () => {
         'http://localhost:8003/api/v1/users/check',
         { email },
         {
-          withCredentials: true,  // Ensure credentials are supported
           headers: {
             'Content-Type': 'application/json',
           },
@@ -90,9 +89,24 @@ const RegisterPage: React.FC = () => {
         navigate('/login')
       }
     } catch (error: any) {
-      console.error('Registration error:', error.response?.data || error.message);
-      setErrorMessage('An error occurred during registration. Please try again.');
-    }
+      if (error.response) {
+        // Server returned a response with a status code out of 2xx range
+        const { status, data } = error.response;
+    
+        if (status === 400) {
+          setErrorMessage('Invalid input. Please check your details.');
+        } else if (status === 409) {
+          setErrorMessage('Email already in use.');
+        } else if (status === 500) {
+          setErrorMessage('Server error. Please try again later.');
+        } else {
+          setErrorMessage(data?.message || 'An unexpected error occurred.');
+        }
+      } else {
+        // No response from server
+        setErrorMessage('Network error. Please check your connection.');
+      }
+      console.error('Registration error:', error.message || error);    }
   };
 
   const handleTogglePasswordVisibility = () => setShowPassword(!showPassword);

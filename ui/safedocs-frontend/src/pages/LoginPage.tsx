@@ -11,6 +11,10 @@ import {
 } from '@mui/material';
 import { jwtDecode } from 'jwt-decode';
 
+//axios.defaults.headers.common['Expires'] = new Date(Date.now() + 60 * 60 * 1000).toUTCString();
+axios.defaults.headers.common['Content-Type'] = 'application/json';
+
+
 interface DecodedToken {
   name: string;
   profileLink: string;
@@ -33,16 +37,17 @@ function LoginPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const navigate = useNavigate();
 
-  const handleLogin = async () => {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
     console.log("Sending login request...");
 
     try {
       const response = await axios.post('http://localhost:8000/api/v1/auth/login', {
         email,
         password,
-      });
-
-      alert(response);
+      },
+      { timeout: 10000 } // 10-second timeout
+      );
       console.log(response);
   
       if (response.status === 200) {

@@ -23,7 +23,7 @@ func GenerateToken(username string) (string, error) {
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(jwtKey)
 }
 
-func GenerateInternalJWT(userID string, roles []string, privateKeyPEM []byte) (string, error) {
+func GenerateInternalJWT(userID string, name string, roles []string, privateKeyPEM []byte) (string, error) {
 	log.Println("Starting GenerateInternalJWT...")
 	log.Printf("Received userID: %s", userID)
 	log.Printf("Roles: %v", roles)
@@ -39,11 +39,12 @@ func GenerateInternalJWT(userID string, roles []string, privateKeyPEM []byte) (s
 
 	// Log token claims
 	claims := jwt.MapClaims{
-		"sub":   userID,
-		"roles": roles,
-		"exp":   time.Now().Add(time.Hour * 1).Unix(),
-		"iss":   "auth-service",
-		"aud":   "file-service",
+		"userID": userID,
+		"name":   name,
+		"roles":  roles,
+		"exp":    time.Now().Add(time.Hour * 1).Unix(),
+		"iss":    "auth-service",
+		"aud":    "file-service",
 	}
 	log.Printf("Generated claims: %+v", claims)
 

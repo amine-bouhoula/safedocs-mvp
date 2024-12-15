@@ -75,7 +75,7 @@ func RegisterHandler() gin.HandlerFunc {
 		utils.Logger.Info("User registered successfully", zap.String("username", user.Username))
 
 		// Load the private key for JWT generation
-		privateKeyPEM, err := authservices.LoadPrivateKey("/keys/private_key.pem")
+		privateKeyPEM, err := authservices.LoadPrivateKey("../keys/private_key.pem")
 		if err != nil {
 			utils.Logger.Fatal("Failed to load private key", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load private key"})
@@ -83,7 +83,7 @@ func RegisterHandler() gin.HandlerFunc {
 		}
 
 		// Generate JWT token
-		token, err := authservices.GenerateInternalJWT(user.Username, []string{"admin"}, privateKeyPEM)
+		token, err := authservices.GenerateInternalJWT(user.ID, user.Username, []string{"admin"}, privateKeyPEM)
 		if err != nil {
 			utils.Logger.Error("Failed to generate token", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
@@ -132,7 +132,7 @@ func LoginHandler() gin.HandlerFunc {
 		}
 
 		// Load the private key for JWT generation
-		privateKeyPEM, err := authservices.LoadPrivateKey("/keys/private_key.pem")
+		privateKeyPEM, err := authservices.LoadPrivateKey("../keys/private_key.pem")
 		if err != nil {
 			utils.Logger.Fatal("Failed to load private key", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load private key"})
@@ -140,7 +140,7 @@ func LoginHandler() gin.HandlerFunc {
 		}
 
 		// Generate JWT token
-		token, err := authservices.GenerateInternalJWT(user.Username, []string{"admin"}, privateKeyPEM)
+		token, err := authservices.GenerateInternalJWT(user.ID, user.Username, []string{"admin"}, privateKeyPEM)
 		if err != nil {
 			utils.Logger.Error("Failed to generate token", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
