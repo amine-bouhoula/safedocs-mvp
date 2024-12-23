@@ -1,21 +1,25 @@
 package api
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	fileservices "file-service/internal/services"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/amine-bouhoula/safedocs-mvp/sdlib/config"
 	"github.com/amine-bouhoula/safedocs-mvp/sdlib/database"
 	"github.com/amine-bouhoula/safedocs-mvp/sdlib/services"
+	"github.com/gin-contrib/cors"
+	"github.com/google/uuid"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -64,6 +68,15 @@ func StartServer(cfg *config.Config, log *zap.Logger) {
 	// Initialize Gin router
 	router := gin.Default()
 
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:3039"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		AllowCredentials: true,
+		ExposeHeaders:    []string{"Content-Length", "Authorization"},
+		MaxAge:           12 * time.Hour, // Caching preflight requests
+	}))
+
 	// Initialize services with proper error handling
 	log.Info("Initializing storage service")
 	storageService, err := fileservices.ConnectMinio(cfg.MinIOURL, cfg.MinIOUser, cfg.MinIOPass, log)
@@ -94,18 +107,34 @@ func StartServer(cfg *config.Config, log *zap.Logger) {
 	// Define /metrics endpoint
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
-	router.POST("/start-upload", func(c *gin.Context) {
+	router.POST("/api/v1/files/start-upload", func(c *gin.Context) {
 		startUpload(c, log)
 	})
 
 	// Define routes
 	log.Info("Defining routes")
-	router.POST("/upload", func(c *gin.Context) {
+	router.POST("/api/v1/files/upload", func(c *gin.Context) {
 		log.Info("Handling /upload request", zap.String("method", c.Request.Method))
-		uploadFileHandler(c, storageService, metadataService, log)
+		singleFileUploadHandler(c, storageService, metadataService, log)
 	})
 
-	router.GET("/download/:bucket/:file", func(c *gin.Context) {
+	router.GET("/api/v1/files/list", func(c *gin.Context) {
+		log.Info("Handling /download request", zap.String("method", c.Request.Method), zap.String("path", c.Request.URL.Path))
+		fileslisterHandler(c, metadataService, log)
+	})
+
+	router.DELETE("/api/v1/files/:fileID", func(c *gin.Context) {
+		log.Info("Handling /delete request", zap.String("method", c.Request.Method), zap.String("path", c.Request.URL.Path))
+		singleFileDeleteHandler(c, metadataService, log)
+	})
+
+	var ws = fileservices.NewWebSocketServer(log)
+
+	router.GET("/api/v1/files/ws-connection", func(c *gin.Context) {
+		ws.HandleConnection(c, publicKey)
+	})
+
+	router.GET("/api/v1/files/download/:bucket/:file", func(c *gin.Context) {
 		log.Info("Handling /download request", zap.String("method", c.Request.Method), zap.String("path", c.Request.URL.Path))
 		downloadFileHandler(c, storageService)
 	})
@@ -157,13 +186,13 @@ func listFileVersionsHandler(c *gin.Context, storage *fileservices.StorageServic
 
 // StartUpload initializes an upload session
 func startUpload(c *gin.Context, log *zap.Logger) {
-	var request struct {
+	var request []struct {
 		FileName  string `json:"fileName"`
 		FileSize  int64  `json:"fileSize"`
 		ChunkSize int64  `json:"chunkSize"`
 	}
 
-	log.Info("Received request to start an upload session", zap.String("clientIP", c.ClientIP()))
+	log.Info("Received request to start multiple upload sessions", zap.String("clientIP", c.ClientIP()))
 
 	// Parse request body
 	if err := c.ShouldBindJSON(&request); err != nil {
@@ -172,53 +201,62 @@ func startUpload(c *gin.Context, log *zap.Logger) {
 		return
 	}
 
-	// Validate fileName and fileSize
-	if request.FileName == "" || request.FileSize <= 0 {
-		log.Error("Invalid fileName or fileSize",
-			zap.String("fileName", request.FileName),
-			zap.Int64("fileSize", request.FileSize))
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid fileName or fileSize"})
-		return
+	// Initialize response
+	uploadResponses := []map[string]interface{}{}
+
+	for _, file := range request {
+		// Validate fileName and fileSize
+		if file.FileName == "" || file.FileSize <= 0 {
+			log.Error("Invalid fileName or fileSize",
+				zap.String("fileName", file.FileName),
+				zap.Int64("fileSize", file.FileSize))
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid fileName or fileSize"})
+			return
+		}
+
+		// Default chunk size to 5MB if not provided
+		if file.ChunkSize <= 0 {
+			file.ChunkSize = 5 * 1024 * 1024 // 5MB
+			log.Info("Default chunk size applied", zap.Int64("chunkSize", file.ChunkSize))
+		}
+
+		// Generate a unique upload session ID
+		uploadSessionId := generateSessionID()
+		log.Info("Generated unique upload session ID", zap.String("uploadSessionId", uploadSessionId))
+
+		// Create a new upload session
+		uploadSession := &UploadSession{
+			FileName:       file.FileName,
+			FileSize:       file.FileSize,
+			ChunkSize:      file.ChunkSize,
+			UploadedChunks: make(map[int]bool),
+			CreatedAt:      time.Now(),
+		}
+
+		// Store the session in memory
+		uploadSessions.Lock()
+		uploadSessions.Sessions[uploadSessionId] = uploadSession
+		uploadSessions.Unlock()
+		log.Info("Upload session created successfully",
+			zap.String("uploadSessionId", uploadSessionId),
+			zap.String("fileName", file.FileName),
+			zap.Int64("fileSize", file.FileSize),
+			zap.Int64("chunkSize", file.ChunkSize),
+		)
+
+		// Add the session details to the response
+		uploadResponses = append(uploadResponses, map[string]interface{}{
+			"uploadSessionId": uploadSessionId,
+			"fileName":        file.FileName,
+			"chunkSize":       file.ChunkSize,
+		})
 	}
 
-	// Default chunk size to 5MB if not provided
-	if request.ChunkSize <= 0 {
-		request.ChunkSize = 5 * 1024 * 1024 // 5MB
-		log.Info("Default chunk size applied", zap.Int64("chunkSize", request.ChunkSize))
-	}
-
-	// Generate a unique upload session ID
-	uploadSessionId := generateSessionID()
-	log.Info("Generated unique upload session ID", zap.String("uploadSessionId", uploadSessionId))
-
-	// Create a new upload session
-	uploadSession := &UploadSession{
-		FileName:       request.FileName,
-		FileSize:       request.FileSize,
-		ChunkSize:      request.ChunkSize,
-		UploadedChunks: make(map[int]bool),
-		CreatedAt:      time.Now(),
-	}
-
-	// Store the session in memory
-	uploadSessions.Lock()
-	uploadSessions.Sessions[uploadSessionId] = uploadSession
-	uploadSessions.Unlock()
-	log.Info("Upload session created successfully",
-		zap.String("uploadSessionId", uploadSessionId),
-		zap.String("fileName", request.FileName),
-		zap.Int64("fileSize", request.FileSize),
-		zap.Int64("chunkSize", request.ChunkSize),
-	)
-
-	// Respond with the session ID and chunk size
+	// Respond with all session IDs and chunk sizes
 	c.JSON(http.StatusOK, gin.H{
-		"uploadSessionId": uploadSessionId,
-		"chunkSize":       request.ChunkSize,
+		"uploadSessions": uploadResponses,
 	})
-	log.Info("Response sent successfully",
-		zap.String("uploadSessionId", uploadSessionId),
-		zap.Int64("chunkSize", request.ChunkSize))
+	log.Info("Response sent successfully", zap.Int("uploadSessionCount", len(uploadResponses)))
 }
 
 // Helper function to generate a random session ID
@@ -228,135 +266,105 @@ func generateSessionID() string {
 	return hex.EncodeToString(bytes)
 }
 
-// UploadChunk handles chunked file uploads
-func uploadFileHandler(c *gin.Context, storage *fileservices.StorageService, metadata *fileservices.MetadataService, log *zap.Logger) {
-	// Start timer
+func singleFileUploadHandler(c *gin.Context, storage *fileservices.StorageService, metadata *fileservices.MetadataService, log *zap.Logger) {
 	startTime := time.Now()
 
-	log.Info("Incoming upload request",
-		zap.String("clientIP", c.ClientIP()),
-		zap.String("method", c.Request.Method),
-		zap.String("path", c.Request.URL.Path),
-		zap.Any("headers", c.Request.Header),
-		zap.Any("queryParams", c.Request.URL.Query()),
-	)
-	// Extract metadata from the form data
-	uploadSessionId := c.PostForm("uploadSessionId")
-	chunkIndexStr := c.PostForm("chunkIndex")
-	totalChunksStr := c.PostForm("totalChunks")
-	fileName := c.PostForm("fileName")
-	fileID := c.PostForm("fileID")
-	parentFileID := c.PostForm("parentFileID")
-
-	// Parse numeric fields
-	chunkIndex, err := strconv.Atoi(chunkIndexStr)
+	bodyBytes, err := ioutil.ReadAll(c.Request.Body)
 	if err != nil {
-		log.Error("Invalid chunk index", zap.Error(err))
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid chunkIndex"})
+		log.Error("Failed to read request body", zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
 		return
 	}
 
-	totalChunks, err := strconv.Atoi(totalChunksStr)
-	if err != nil {
-		log.Error("Invalid total chunks", zap.Error(err))
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid totalChunks"})
-		return
-	}
-
-	// Check if the session ID exists
-	uploadSessions.Lock()
-	session, exists := uploadSessions.Sessions[uploadSessionId]
-	uploadSessions.Unlock()
-
+	userID, exists := c.Get("userID")
 	if !exists {
-		log.Error("Invalid upload session ID", zap.String("uploadSessionId", uploadSessionId))
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid uploadSessionId"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "UserID not found in context"})
 		return
 	}
 
-	// Process the file chunk
-	file, _, err := c.Request.FormFile("file")
+	userIDStr, ok := userID.(string)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "UserID is not of type string"})
+		return
+	}
+
+	// Restore the request body so it can be read again by the Gin context
+	c.Request.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+
+	// Log the request headers and body
+	log.Info("Received upload request",
+		zap.String("user id", userIDStr),
+		zap.String("method", c.Request.Method),
+		zap.String("url", c.Request.RequestURI),
+		zap.String("clientIP", c.ClientIP()),
+		zap.String("headers", fmt.Sprintf("%v", c.Request.Header)),
+	)
+	const maxFileSize = 100 * 1024 * 1024 // 10MB in bytes
+	// Parse multipart form data
+	form, err := c.MultipartForm()
 	if err != nil {
-		log.Error("Failed to read file chunk", zap.Error(err))
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to read file chunk"})
-		return
-	}
-	defer file.Close()
-
-	// Save the chunk to the temporary directory
-	chunkPath := filepath.Join(session.TempDir, fmt.Sprintf("%s.part%d", fileName, chunkIndex))
-	outFile, err := os.Create(chunkPath)
-	if err != nil {
-		log.Error("Failed to save chunk", zap.String("chunkPath", chunkPath), zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save chunk"})
-		return
-	}
-	defer outFile.Close()
-
-	if _, err := io.Copy(outFile, file); err != nil {
-		log.Error("Failed to write chunk to disk", zap.Error(err))
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write chunk to disk"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid form data"})
 		return
 	}
 
-	duration := time.Since(startTime)
-	log.Info("Chunk saved successfully", zap.String("chunkPath", chunkPath), zap.Int("chunkIndex", chunkIndex), zap.Duration("duration to get all chunks", duration))
+	// Get files from the form data
+	files := form.File["files"] // "files" is the name attribute in the React file input
+	if len(files) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "No files uploaded"})
+		return
+	}
 
-	startTime = time.Now()
+	var uploadedFiles []string
 
-	// Mark the chunk as uploaded
-	uploadSessions.Lock()
-	session.UploadedChunks[chunkIndex] = true
-	uploadedChunks := len(session.UploadedChunks)
-	uploadSessions.Unlock()
+	for _, file := range files {
+		// Check file size
+		if file.Size > maxFileSize {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": fmt.Sprintf("File %s is too large. Max allowed size is 10MB", file.Filename),
+			})
+			return
+		}
 
-	// Check if all chunks are uploaded
-	if uploadedChunks == totalChunks {
-		log.Info("All chunks received. Reassembling file", zap.String("fileName", fileName))
-
-		finalPath := filepath.Join(session.TempDir, fileName)
-		finalFile, err := os.Create(finalPath)
+		// Open the file
+		fileContent, err := file.Open()
 		if err != nil {
-			log.Error("Failed to create final file", zap.Error(err))
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create final file"})
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to open file"})
 			return
 		}
-		defer finalFile.Close()
+		defer fileContent.Close()
 
-		// Merge all chunks
-		for i := 0; i < totalChunks; i++ {
-			chunkPath := filepath.Join(session.TempDir, fmt.Sprintf("%s.part%d", fileName, i))
-			chunkFile, err := os.Open(chunkPath)
-			if err != nil {
-				log.Error("Failed to open chunk for merging", zap.String("chunkPath", chunkPath), zap.Error(err))
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to open chunk for merging"})
-				return
-			}
+		fileID := uuid.New().String()
+		fileSizeStr := c.PostForm("fileSize")
 
-			if _, err := io.Copy(finalFile, chunkFile); err != nil {
-				chunkFile.Close()
-				log.Error("Failed to write chunk to final file", zap.Error(err))
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to write chunk to final file"})
-				return
-			}
-			chunkFile.Close()
-
-			// Remove the chunk after merging
-			if err := os.Remove(chunkPath); err != nil {
-				log.Warn("Failed to delete chunk after merging", zap.String("chunkPath", chunkPath), zap.Error(err))
-			}
-		}
-
-		log.Info("File reassembled successfully", zap.String("fileName", finalPath))
-
-		// Reset the file pointer to the start
-		if _, err := finalFile.Seek(0, 0); err != nil {
-			log.Error("Failed to rewind file pointer to the start", zap.Error(err))
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to rewind file pointer to the start"})
+		var multiplier int64
+		if strings.HasSuffix(fileSizeStr, "MB") {
+			multiplier = 1 // File size is already in MB
+			fileSizeStr = strings.TrimSuffix(fileSizeStr, "MB")
+		} else if strings.HasSuffix(fileSizeStr, "GB") {
+			multiplier = 1024 // 1 GB = 1024 MB
+			fileSizeStr = strings.TrimSuffix(fileSizeStr, "GB")
+		} else {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Invalid file size. Must end with 'MB' or 'GB'.",
+			})
 			return
 		}
-		// Upload the merged file to MinIO
-		fileID, fileVersion, err := storage.UploadFile(finalFile, fileID, fileName, "application/octet-stream")
+
+		// Parse the numeric part of the file size
+		fileSizeNumber, err := strconv.ParseFloat(fileSizeStr, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "Invalid file size. Must be a valid number.",
+			})
+			return
+		}
+
+		// Convert megabytes to bytes
+		fileSizeBytes := int64(fileSizeNumber*1024*1024) * multiplier
+
+		// Upload file to MinIO
+		objectName := fmt.Sprintf("%d_%s", time.Now().UnixNano(), file.Filename)
+		fileID, fileVersion, err := storage.UploadFile(fileContent, fileID, file.Filename, "application/octet-stream")
 		if err != nil {
 			log.Error("Failed to upload merged file to MinIO", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to upload file to storage"})
@@ -366,33 +374,112 @@ func uploadFileHandler(c *gin.Context, storage *fileservices.StorageService, met
 		log.Info("Merged file uploaded successfully", zap.String("fileID", fileID), zap.String("file version", fileVersion))
 
 		// Save metadata
-		err = metadata.SaveFileMetadata(fileID, fileVersion, parentFileID, fileName, session.FileSize, "application/octet-stream")
+		err = metadata.SaveFileMetadata(userIDStr, fileID, file.Filename, fileVersion, fileSizeBytes)
 		if err != nil {
 			log.Error("Failed to save file metadata", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file metadata"})
 			return
 		}
 
-		// Cleanup session
-		uploadSessions.Lock()
-		delete(uploadSessions.Sessions, uploadSessionId)
-		uploadSessions.Unlock()
-
-		// Cleanup temporary directory
-		if err := os.RemoveAll(session.TempDir); err != nil {
-			log.Warn("Failed to delete temporary directory", zap.String("tempDir", session.TempDir), zap.Error(err))
-		}
+		uploadedFiles = append(uploadedFiles, objectName)
 
 		// Log and respond
 		duration := time.Since(startTime)
 		log.Info("File upload in MINIO and assembly process completed ",
-			zap.String("fileID", fileID),
+			zap.String("file name", file.Filename),
+			zap.String("file ID", fileID),
+			zap.String("file version", fileVersion),
 			zap.Duration("duration", duration),
 		)
-		c.JSON(http.StatusOK, gin.H{"message": "File upload complete", "fileID": fileID})
+	}
+
+	// Return success response
+	c.JSON(http.StatusOK, gin.H{
+		"message":       "Files uploaded successfully",
+		"uploadedFiles": uploadedFiles,
+	})
+}
+
+func fileslisterHandler(c *gin.Context, metadata *fileservices.MetadataService, log *zap.Logger) {
+	// Step 1: Extract the token from the Authorization header
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		log.Error("Authorization header is missing")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header is required"})
 		return
 	}
 
-	// Respond for single chunk upload
-	c.JSON(http.StatusOK, gin.H{"message": "Chunk uploaded successfully", "chunkIndex": chunkIndex})
+	// The token is usually in the format "Bearer <token>"
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	if tokenString == authHeader { // "Bearer " was not in the header
+		log.Error("Authorization header format is invalid")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header format is invalid"})
+		return
+	}
+
+	// Extract the userID from the token claims
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "UserID not found in context"})
+		return
+	}
+
+	userIDStr, ok := userID.(string)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "UserID is not of type string"})
+		return
+	}
+
+	// Step 3: Fetch files for the user from the database
+	files, err := metadata.GetFilesByUserID(userIDStr)
+	if err != nil {
+		log.Error("Failed to fetch files", zap.String("userID", userIDStr), zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve files"})
+		return
+	}
+
+	// Step 4: Return the list of files in the response
+	log.Info("Files retrieved successfully", zap.String("userID", userIDStr), zap.Int("fileCount", len(files)))
+	c.JSON(http.StatusOK, gin.H{"files": files})
+}
+
+func singleFileDeleteHandler(c *gin.Context, metadata *fileservices.MetadataService, log *zap.Logger) {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" {
+		log.Error("Authorization header is missing")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header is required"})
+		return
+	}
+
+	// The token is usually in the format "Bearer <token>"
+	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+	if tokenString == authHeader { // "Bearer " was not in the header
+		log.Error("Authorization header format is invalid")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header format is invalid"})
+		return
+	}
+
+	// Extract the userID from the token claims
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "UserID not found in context"})
+		return
+	}
+
+	userIDStr, ok := userID.(string)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "UserID is not of type string"})
+		return
+	}
+
+	fileID := c.Param("fileID") // Get fileID from URL parameter
+
+	// Step 3: Fetch files for the user from the database
+	err := metadata.DeleteFileMetadata(userIDStr, fileID, "fileVersion")
+	if err != nil {
+		log.Error("Failed to fetch files", zap.String("userID", userIDStr), zap.Error(err))
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve files"})
+		return
+	}
+
 }

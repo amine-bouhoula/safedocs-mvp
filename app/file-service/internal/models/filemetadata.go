@@ -6,6 +6,7 @@ import (
 
 type FileMetadata struct {
 	FileID        string `gorm:"primaryKey"` // Unique identifier for the file
+	UserID        string `gorm:"not null"`   // User ID
 	ParentFileID  string
 	FileName      string `gorm:"not null"`  // File name
 	Size          int64  `gorm:"not null"`  // File size in bytes

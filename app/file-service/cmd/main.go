@@ -2,7 +2,9 @@ package main
 
 import (
 	"file-service/internal/api"
+	"file-service/internal/models"
 	"fmt"
+	"log"
 
 	"github.com/amine-bouhoula/safedocs-mvp/sdlib/config"
 	"github.com/amine-bouhoula/safedocs-mvp/sdlib/database"
@@ -24,6 +26,10 @@ func main() {
 	err := database.ConnectDB(cfg.DatabaseURL)
 	if err != nil {
 		utils.Logger.Fatal("Failed to connect to the Postgres database", zap.Error(err))
+	}
+
+	if err := database.DB.AutoMigrate(&models.FileMetadata{}); err != nil {
+		log.Fatalf("Failed to run database migrations: %v", err)
 	}
 
 	// Step 4: Start the API server

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"auth-service/models"
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
@@ -23,9 +24,9 @@ func GenerateToken(username string) (string, error) {
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(jwtKey)
 }
 
-func GenerateInternalJWT(userID string, name string, roles []string, privateKeyPEM []byte) (string, error) {
+func GenerateInternalJWT(user models.User, roles []string, privateKeyPEM []byte) (string, error) {
 	log.Println("Starting GenerateInternalJWT...")
-	log.Printf("Received userID: %s", userID)
+	log.Printf("Received userID: %s", user.ID)
 	log.Printf("Roles: %v", roles)
 
 	// Attempt to parse the private key
@@ -39,10 +40,11 @@ func GenerateInternalJWT(userID string, name string, roles []string, privateKeyP
 
 	// Log token claims
 	claims := jwt.MapClaims{
-		"userID": userID,
-		"name":   name,
+		"userID": user.ID,
+		"name":   user.Username,
+		"email":  user.Email,
 		"roles":  roles,
-		"exp":    time.Now().Add(time.Hour * 1).Unix(),
+		"exp":    time.Now().Add(time.Minute * 1).Unix(),
 		"iss":    "auth-service",
 		"aud":    "file-service",
 	}

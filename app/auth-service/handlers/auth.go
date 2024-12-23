@@ -83,7 +83,7 @@ func RegisterHandler() gin.HandlerFunc {
 		}
 
 		// Generate JWT token
-		token, err := authservices.GenerateInternalJWT(user.ID, user.Username, []string{"admin"}, privateKeyPEM)
+		token, err := authservices.GenerateInternalJWT(user, []string{"admin"}, privateKeyPEM)
 		if err != nil {
 			utils.Logger.Error("Failed to generate token", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
@@ -140,7 +140,7 @@ func LoginHandler() gin.HandlerFunc {
 		}
 
 		// Generate JWT token
-		token, err := authservices.GenerateInternalJWT(user.ID, user.Username, []string{"admin"}, privateKeyPEM)
+		token, err := authservices.GenerateInternalJWT(user, []string{"admin"}, privateKeyPEM)
 		if err != nil {
 			utils.Logger.Error("Failed to generate token", zap.Error(err))
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
